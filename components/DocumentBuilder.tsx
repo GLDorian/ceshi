@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { LibraryData, ProjectNode, ProjectFormNode, ProjectVariableNode, ProjectVersion, ProjectMeta, VariableLogic } from '../types';
-import { FileText, Plus, Wand2, X, UploadCloud, Trash2, List, Save, Check, History, FileDiff, Download, GripVertical, Table as TableIcon, ArrowUp, ArrowDown, ArrowLeft, Link2, Navigation, CloudCheck } from 'lucide-react';
+import { FileText, Plus, Wand2, X, UploadCloud, Trash2, List, Save, Check, History, FileDiff, Download, GripVertical, Table as TableIcon, ArrowUp, ArrowDown, ArrowLeft, Link2, Navigation } from 'lucide-react';
 import { polishText } from '../services/geminiService';
 import { generateWordDoc, generateExcel, generateChangeLogWord } from '../services/exportService';
 import { read, utils } from 'xlsx';
@@ -285,6 +285,28 @@ const DocumentBuilder: React.FC<Props> = ({ library, setLibrary, project, setPro
     link.href = URL.createObjectURL(blob);
     link.download = `${projectMeta.name.replace(/[^a-z0-9]/gi, '_')}_backup_${new Date().toISOString().slice(0, 10)}.json`;
     link.click();
+  };
+
+  const handleMoveVisitUp = (e: React.MouseEvent, index: number) => {
+    e.stopPropagation();
+    if (index <= 0) return;
+    setProject(prev => {
+        const newProject = JSON.parse(JSON.stringify(prev));
+        [newProject[index - 1], newProject[index]] = [newProject[index], newProject[index - 1]];
+        newProject.forEach((v: any, i: number) => v.order = i + 1);
+        return newProject;
+    });
+  };
+
+  const handleMoveVisitDown = (e: React.MouseEvent, index: number) => {
+    e.stopPropagation();
+    setProject(prev => {
+        if (index >= prev.length - 1) return prev;
+        const newProject = JSON.parse(JSON.stringify(prev));
+        [newProject[index], newProject[index + 1]] = [newProject[index + 1], newProject[index]];
+        newProject.forEach((v: any, i: number) => v.order = i + 1);
+        return newProject;
+    });
   };
 
   const handleMoveFormUp = (e: React.MouseEvent, visitId: string, index: number) => {
@@ -604,7 +626,6 @@ const DocumentBuilder: React.FC<Props> = ({ library, setLibrary, project, setPro
           <button onClick={onBack} className="p-2 hover:bg-slate-100 rounded-full text-slate-500 transition-colors"><ArrowLeft size={20} /></button>
           <div className="h-6 w-px bg-slate-200 mx-1"></div>
           <h1 className="text-xl font-bold text-slate-800">{projectMeta.name}</h1>
-          <span className="ml-2 flex items-center gap-1 text-[10px] text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100"><CloudCheck size={12}/> 已自动同步</span>
         </div>
         <div className="flex items-center gap-2">
           <input type="file" ref={excelInputRef} hidden accept=".xlsx,.xls" onChange={handleImportExcelStructure} />
@@ -629,12 +650,16 @@ const DocumentBuilder: React.FC<Props> = ({ library, setLibrary, project, setPro
                              <button onClick={() => setIsVisitModalOpen(true)} className="flex-1 flex items-center justify-center gap-1 py-2 text-xs font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded hover:bg-blue-100"><Plus size={14} /> 新建访视</button>
                              <button onClick={() => excelInputRef.current?.click()} className="flex-1 flex items-center justify-center gap-1 py-2 text-xs font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 rounded hover:bg-emerald-100"><UploadCloud size={14} /> 导入架构</button>
                         </div>
-                        {project.map(visit => (
+                        {project.map((visit, index) => (
                             <div key={visit.visitId} className={`group flex items-stretch rounded-lg border transition-all ${selectedVisitId === visit.visitId ? 'bg-white border-blue-400 shadow-md translate-x-1' : 'bg-white border-slate-200 hover:border-blue-200'}`}>
                                 <button onClick={() => setSelectedVisitId(visit.visitId)} className="flex-1 p-3 text-left">
                                     <div className={`text-sm font-bold ${selectedVisitId === visit.visitId ? 'text-blue-700' : 'text-slate-700'}`}>{visit.visitName}</div>
                                     <div className="text-xs text-slate-400 font-mono">{visit.visitId} · {visit.forms.length} 表单</div>
                                 </button>
+                                <div className="flex flex-col justify-center px-1 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-50 border-l border-slate-100">
+                                    <button onClick={(e) => handleMoveVisitUp(e, index)} disabled={index === 0} className="p-1 hover:text-blue-600 text-slate-400 disabled:invisible"><ArrowUp size={12} /></button>
+                                    <button onClick={(e) => handleMoveVisitDown(e, index)} disabled={index === project.length - 1} className="p-1 hover:text-blue-600 text-slate-400 disabled:invisible"><ArrowDown size={12} /></button>
+                                </div>
                                 <button onClick={(e) => { e.stopPropagation(); requestDelete({ type: 'visit', visitId: visit.visitId, displayName: visit.visitName }); }} className={`px-3 flex items-center justify-center ${selectedVisitId === visit.visitId ? 'text-blue-200 hover:text-blue-600' : 'text-slate-300 hover:text-red-500'}`}><Trash2 size={16}/></button>
                             </div>
                         ))}
